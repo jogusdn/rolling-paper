@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>💌 디지털 롤링페이퍼 (Rolling Paper)</title>
+    <!-- 구글 폰트: 한글 본문 및 손글씨 느낌 폰트 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- 스타일시트 -->
+    <link rel="stylesheet" href="style.css">
+    <!-- Supabase 공식 JS SDK (CDN) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <!-- 배경 장식 요소들 -->
+    <div class="bg-shape circle-1"></div>
+    <div class="bg-shape circle-2"></div>
+
+    <div class="container">
+        <!-- 헤더 영역 -->
+        <header class="header">
+            <div class="header-badge">✨ 누구나 남길 수 있는 공개 게시판</div>
+            <h1 class="header-title">💌 디지털 롤링페이퍼</h1>
+            <p class="header-desc">따뜻한 응원, 고마운 마음, 축하의 한마디를 자유롭게 남겨보세요!</p>
+
+            <div class="header-actions">
+                <button id="openModalBtn" class="btn btn-primary">
+                    <span class="icon">✏️</span> 나도 메모 남기기
+                </button>
+                <button id="refreshBtn" class="btn btn-secondary" title="새로고침">
+                    <span class="icon">🔄</span> 새로고침
+                </button>
+            </div>
+
+            <!-- 통계 및 검색 바 -->
+            <div class="filter-bar">
+                <div class="counter-badge">
+                    <span>총 <strong id="totalCount">0</strong>개의 메시지</span>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="작성자나 내용으로 검색...">
+                </div>
+            </div>
+        </header>
+
+        <!-- 설정 안내 알림 (Supabase 키 미설정 시 노출) -->
+        <div id="configAlert" class="config-alert" style="display: none;">
+            <div class="alert-icon">⚠️</div>
+            <div class="alert-content">
+                <h3>수파베이스(Supabase) 연동 설정이 필요합니다!</h3>
+                <p><code>config.js</code> 파일에서 <strong>URL</strong>과 <strong>anonKey</strong>를 입력해야 데이터가 저장되고 불러와집니다.</p>
+            </div>
+        </div>
+
+        <!-- 롤링페이퍼 보드 (메모들이 핀으로 꽂힌 공간) -->
+        <main class="board-wrapper">
+            <div id="loadingState" class="loading-state">
+                <div class="spinner"></div>
+                <p>롤링페이퍼 메모를 불러오는 중입니다...</p>
+            </div>
+
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <div class="empty-icon">📝</div>
+                <h3>아직 등록된 메모가 없어요!</h3>
+                <p>위의 <strong>'나도 메모 남기기'</strong> 버튼을 눌러 첫 번째 축하 메시지를 남겨보세요.</p>
+            </div>
+
+            <div id="notesGrid" class="notes-grid">
+                <!-- 자바스크립트로 메모들이 여기에 동적으로 삽입됩니다 -->
+            </div>
+        </main>
+
+        <!-- 푸터 -->
+        <footer class="footer">
+            <p>Made with ❤️ by Vibe Coding · Powered by Supabase & Vercel</p>
+        </footer>
+    </div>
+
+    <!-- 메모 작성 모달 팝업 -->
+    <div id="writeModal" class="modal-overlay">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>📝 새 메모 남기기</h2>
+                <button id="closeModalBtn" class="close-btn" aria-label="닫기">&times;</button>
+            </div>
+            <form id="memoForm">
+                <!-- 작성자 입력 -->
+                <div class="form-group">
+                    <label for="authorInput">작성자 / 닉네임 <span class="required">*</span></label>
+                    <input type="text" id="authorInput" maxlength="20" placeholder="예: 익명의 동기, 든든한 친구" required>
+                </div>
+
+                <!-- 메모 내용 입력 -->
+                <div class="form-group">
+                    <label for="contentInput">메시지 내용 <span class="required">*</span></label>
+                    <textarea id="contentInput" rows="5" maxlength="400" placeholder="전하고 싶은 진심 어린 마음을 적어주세요! (최대 400자)" required></textarea>
+                    <div class="char-counter"><span id="charCount">0</span> / 400자</div>
+                </div>
+
+                <!-- 포스트잇 색상 선택 -->
+                <div class="form-group">
+                    <label>메모지 색상 선택</label>
+                    <div class="color-picker-group">
+                        <label class="color-option color-yellow active">
+                            <input type="radio" name="memoColor" value="yellow" checked>
+                            <span class="color-dot"></span> 노랑
+                        </label>
+                        <label class="color-option color-pink">
+                            <input type="radio" name="memoColor" value="pink">
+                            <span class="color-dot"></span> 핑크
+                        </label>
+                        <label class="color-option color-mint">
+                            <input type="radio" name="memoColor" value="mint">
+                            <span class="color-dot"></span> 민트
+                        </label>
+                        <label class="color-option color-blue">
+                            <input type="radio" name="memoColor" value="blue">
+                            <span class="color-dot"></span> 하늘
+                        </label>
+                        <label class="color-option color-purple">
+                            <input type="radio" name="memoColor" value="purple">
+                            <span class="color-dot"></span> 보라
+                        </label>
+                        <label class="color-option color-orange">
+                            <input type="radio" name="memoColor" value="orange">
+                            <span class="color-dot"></span> 살구
+                        </label>
+                    </div>
+                </div>
+
+                <!-- 제출 버튼 -->
+                <div class="modal-footer">
+                    <button type="button" id="cancelBtn" class="btn btn-secondary">취소</button>
+                    <button type="submit" id="submitBtn" class="btn btn-primary">
+                        <span id="submitText">붙이기 📌</span>
+                        <span id="submitSpinner" class="spinner-small" style="display: none;"></span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 토스트 알림 메시지 (등록 성공/실패 안내) -->
+    <div id="toast" class="toast">메시지가 등록되었습니다!</div>
+
+    <!-- 자바스크립트 연결 -->
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
+
